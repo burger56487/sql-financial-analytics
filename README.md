@@ -1,38 +1,59 @@
 # SQL Financial Analytics
 
-Two SQL (SQLite) analytics projects demonstrating schema design, JOINs,
-aggregations, window functions, CTEs and custom aggregates — applied to
-private-markets and quantitative use cases.
+Two SQL (SQLite) analytics projects demonstrating schema design with constraints,
+JOINs, CTEs, window functions and custom aggregates — applied to private-markets
+and quantitative use cases. All data is either **simulated** (PE/VC) or public
+market data (quant); neither project is a validated investment strategy.
 
-## 1. PE/VC Deal Database (`pe_vc_deals.py`)
-A private-equity / venture-capital portfolio database with analytical queries:
-- Portfolio overview, MOIC, realised vs unrealised
-- Performance by sector, stage and vintage year
-- Top deals (window `RANK`), win/loss distribution
-- Return concentration (CTE) — the top 3 deals drive ~65% of value, reproducing
-  the venture power-law
+## 1. Simulated PE/VC Portfolio Analytics (`pe_vc_deals.py`)
+A SQLite database of a **fictional** PE/VC fund portfolio, with fund-level and
+deal-level analytics.
 
-**SQL used:** `CREATE TABLE` (keys), `JOIN`, `GROUP BY`, `CASE`,
-window functions (`RANK`, `SUM OVER`), CTEs, date functions.
+- Fund metrics: paid-in, **DPI / RVPI / TVPI**, MOIC (using ownership × company valuation)
+- Performance by sector, stage, fund and vintage year (with average holding period)
+- Status breakdown: **Realized / Unrealized / Written-off** (three categories)
+- Top deals by MOIC, and **gain (profit) concentration** — the top deals drive
+  most of total gains, reproducing the venture power-law
+- Gross annualized return (IRR proxy) per deal from holding period
+
+**SQL used:** `CREATE TABLE` with `CHECK` constraints and foreign keys
+(`PRAGMA foreign_keys = ON`), `JOIN`, `GROUP BY`, `CASE`, window functions
+(`RANK`, `SUM OVER`), CTEs, date functions.
 
 ![MOIC by Sector](charts/moic_by_sector.png)
-![Return Concentration](charts/concentration.png)
+![Gain Concentration](charts/gain_concentration.png)
 
-## 2. Quant Factor Database (`quant_factors.py`)
-Loads real market data (via yfinance) into SQLite and computes factors in SQL:
-- Daily returns (`LAG`), 63-day momentum ranking (`LAG` + `RANK`)
-- Risk/return per stock: annualised return, volatility, Sharpe
-  (via a **custom `STDDEV` aggregate**)
-- Total return, and a momentum long/short factor portfolio (top 5 vs bottom 5)
+## 2. Cross-Sectional Momentum Factor Test (`quant_factors.py`)
+A **proper** factor test built in SQL: at each month-end, rank stocks by 12-1
+momentum (skipping the most recent month), form quintile long/short portfolios,
+and measure **next-month** returns — so there is no look-ahead.
 
-**SQL used:** window functions (`LAG`, `RANK`, `ROW_NUMBER`, `FIRST_VALUE`),
-multi-level CTEs, custom aggregate function, indexing.
+- Monthly long-short (Q5 long, Q1 short) forward returns, gross and net of costs
+- **Information Coefficient (IC)** — rank correlation between the factor and
+  forward returns — plus IC IR and hit rate
+- Turnover and transaction-cost adjustment
 
-![Momentum by Stock](charts/momentum.png)
-![Risk vs Return](charts/risk_return.png)
+**Result (30 US large-caps, 2015-2023):** momentum shows essentially **no
+predictive power** on this universe — mean IC ≈ 0.01, long-short Sharpe ≈ 0 gross
+and negative after 20 bps costs. This is an honest null result: cross-sectional
+dispersion among mega-caps is low and the survivor universe flattens the signal.
+
+**SQL used:** month-end resampling (`ROW_NUMBER`), `LAG`/`LEAD` for momentum and
+forward returns, `NTILE` for quintiles, multi-level CTEs, indexing; IC, turnover
+and cost analysis in pandas.
+
+![Momentum Long-Short](charts/momentum_ls.png)
+![Information Coefficient](charts/ic.png)
+
+## Important Limitations
+- **PE/VC data is simulated** for demonstration; not real deal data.
+- **Quant universe** is 30 *current* large-cap survivors → survivorship and
+  large-cap bias. A point-in-time / delisting-inclusive universe requires paid
+  data (e.g. CRSP). Costs are a simple bps-on-turnover model.
+- These are analytics/research prototypes, not deployable strategies.
 
 ## How to Run
 ```bash
-pip install yfinance pandas matplotlib
+pip install yfinance pandas numpy scipy matplotlib
 python pe_vc_deals.py
 python quant_factors.py

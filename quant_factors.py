@@ -123,6 +123,44 @@ run("Momentum factor portfolio: top 5 vs bottom 5 (CTE + CASE)", """
     WHERE hi<=5 OR lo<=5
     GROUP BY bucket;
 """)
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import os
+os.makedirs("charts", exist_ok=True)
+
+
+df_mom = pd.read_sql("""
+    WITH r AS (SELECT ticker, close,
+        LAG(close,63) OVER (PARTITION BY ticker ORDER BY date) AS c63,
+        ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY date DESC) AS rn FROM prices)
+    SELECT ticker, ROUND((close/c63-1)*100,1) AS mom FROM r
+    WHERE rn=1 AND c63 IS NOT NULL ORDER BY mom DESC;
+""", conn)
+plt.figure(figsize=(9,5))
+colors = ["#55a868" if v>=0 else "#c44e52" for v in df_mom["mom"]]
+plt.bar(df_mom["ticker"], df_mom["mom"], color=colors)
+plt.title("63-Day Momentum by Stock"); plt.ylabel("Momentum (%)")
+plt.axhline(0, color="black", lw=0.8); plt.xticks(rotation=45, ha="right")
+plt.tight_layout(); plt.savefig("charts/momentum.png", dpi=150); plt.close()
+
+
+df_rr = pd.read_sql("""
+    WITH rets AS (SELECT ticker,
+        close/LAG(close) OVER (PARTITION BY ticker ORDER BY date)-1 AS r FROM prices)
+    SELECT ticker, AVG(r)*252*100 AS ret, STDDEV(r)*15.874*100 AS vol
+    FROM rets WHERE r IS NOT NULL GROUP BY ticker;
+""", conn)
+plt.figure(figsize=(8,6))
+plt.scatter(df_rr["vol"], df_rr["ret"], color="#4c72b0")
+for _, row in df_rr.iterrows():
+    plt.annotate(row["ticker"], (row["vol"], row["ret"]), fontsize=8,
+                 xytext=(4,4), textcoords="offset points")
+plt.title("Risk vs Return"); plt.xlabel("Annualised Volatility (%)"); plt.ylabel("Annualised Return (%)")
+plt.axhline(0, color="gray", lw=0.6); plt.grid(alpha=0.3)
+plt.tight_layout(); plt.savefig("charts/risk_return.png", dpi=150); plt.close()
+
+print("Saved charts to charts/")
 
 conn.close()
 print("\nDone.")

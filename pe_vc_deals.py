@@ -191,5 +191,39 @@ run("Return Concentration (CTE: top 3 share of total value)", """
     ORDER BY value_m DESC;
 """)
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import os
+os.makedirs("charts", exist_ok=True)
+
+
+df_sec = pd.read_sql("""
+    SELECT c.sector, ROUND(SUM(d.value)*1.0/SUM(d.invest_amount),2) AS moic
+    FROM deals d JOIN companies c ON c.company_id=d.company_id
+    GROUP BY c.sector ORDER BY moic DESC;
+""", conn)
+plt.figure(figsize=(9,5))
+plt.bar(df_sec["sector"], df_sec["moic"], color="#4c72b0")
+plt.title("MOIC by Sector"); plt.ylabel("MOIC (x)"); plt.xticks(rotation=45, ha="right")
+plt.tight_layout(); plt.savefig("charts/moic_by_sector.png", dpi=150); plt.close()
+
+
+df_conc = pd.read_sql("""
+    WITH ranked AS (
+        SELECT c.name, d.value, RANK() OVER (ORDER BY d.value DESC) AS rk,
+               SUM(d.value) OVER () AS tot
+        FROM deals d JOIN companies c ON c.company_id=d.company_id)
+    SELECT name, ROUND(100.0*value/tot,1) AS pct FROM ranked WHERE rk<=5 ORDER BY pct DESC;
+""", conn)
+plt.figure(figsize=(8,5))
+plt.bar(df_conc["name"], df_conc["pct"], color="#dd8452")
+plt.title("Return Concentration — Top 5 Deals (% of Portfolio Value)")
+plt.ylabel("% of total value"); plt.xticks(rotation=30, ha="right")
+plt.tight_layout(); plt.savefig("charts/concentration.png", dpi=150); plt.close()
+
+print("Saved charts to charts/")
+
+
 conn.close()
 print("\nDone.")

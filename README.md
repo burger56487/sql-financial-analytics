@@ -27,6 +27,7 @@ multi-level CTEs, custom aggregate function, indexing.
 
 ## How to Run
 ```bash
+pip install matplotlib
 pip install yfinance pandas
 python pe_vc_deals.py
 python quant_factors.py

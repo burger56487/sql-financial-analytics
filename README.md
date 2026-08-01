@@ -15,6 +15,9 @@ A private-equity / venture-capital portfolio database with analytical queries:
 **SQL used:** `CREATE TABLE` (keys), `JOIN`, `GROUP BY`, `CASE`,
 window functions (`RANK`, `SUM OVER`), CTEs, date functions.
 
+![MOIC by Sector](charts/moic_by_sector.png)
+![Return Concentration](charts/concentration.png)
+
 ## 2. Quant Factor Database (`quant_factors.py`)
 Loads real market data (via yfinance) into SQLite and computes factors in SQL:
 - Daily returns (`LAG`), 63-day momentum ranking (`LAG` + `RANK`)
@@ -25,9 +28,11 @@ Loads real market data (via yfinance) into SQLite and computes factors in SQL:
 **SQL used:** window functions (`LAG`, `RANK`, `ROW_NUMBER`, `FIRST_VALUE`),
 multi-level CTEs, custom aggregate function, indexing.
 
+![Momentum by Stock](charts/momentum.png)
+![Risk vs Return](charts/risk_return.png)
+
 ## How to Run
 ```bash
-pip install matplotlib
-pip install yfinance pandas
+pip install yfinance pandas matplotlib
 python pe_vc_deals.py
 python quant_factors.py

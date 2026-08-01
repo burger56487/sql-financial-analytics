@@ -1,3 +1,4 @@
+
 # pe_vc_deals.py
 # A PE/VC deal database built with SQL (SQLite), demonstrating
 # schema design, JOINs, aggregations, window functions and CTEs.
